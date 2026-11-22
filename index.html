@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>雅思高频词卡片</title>
+<style>
+  :root {
+    --bg: #f4f2ee;
+    --card: #ffffff;
+    --text: #1f2430;
+    --muted: #7a7f8c;
+    --accent: #3b6fe0;
+    --good: #2f9e6e;
+    --warn: #e08a3b;
+    --shadow: 0 18px 40px rgba(31, 36, 48, 0.12);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16181d;
+      --card: #22252d;
+      --text: #eceef3;
+      --muted: #9aa0ad;
+      --accent: #6d95f2;
+      --shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    padding: 24px 16px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  }
+  header { text-align: center; width: 100%; max-width: 420px; }
+  h1 { font-size: 20px; font-weight: 600; letter-spacing: 0.5px; }
+  .stats { margin-top: 6px; font-size: 13px; color: var(--muted); }
+  .progress { margin-top: 12px; height: 6px; background: rgba(127,127,127,0.18); border-radius: 3px; overflow: hidden; }
+  .progress-bar { height: 100%; width: 0; background: var(--good); transition: width .4s ease; }
+
+  .scene { width: 100%; max-width: 420px; height: 340px; perspective: 1200px; }
+  .card {
+    position: relative; width: 100%; height: 100%;
+    transform-style: preserve-3d;
+    transition: transform .6s cubic-bezier(.2,.8,.2,1);
+    cursor: pointer;
+  }
+  .card.flipped { transform: rotateY(180deg); }
+  .face {
+    position: absolute; inset: 0;
+    backface-visibility: hidden; -webkit-backface-visibility: hidden;
+    background: var(--card);
+    border-radius: 20px;
+    box-shadow: var(--shadow);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 28px 24px; text-align: center;
+  }
+  .back { transform: rotateY(180deg); }
+  .tag {
+    position: absolute; top: 16px; left: 18px;
+    font-size: 12px; color: var(--muted);
+  }
+  .again-tag {
+    position: absolute; top: 16px; right: 18px;
+    font-size: 12px; color: var(--warn); display: none;
+  }
+  .word { font-size: 40px; font-weight: 700; letter-spacing: 0.5px; word-break: break-word; }
+  .phonetic { margin-top: 10px; font-size: 18px; color: var(--muted); font-family: "Lucida Sans Unicode", "Arial Unicode MS", sans-serif; }
+  .hint { position: absolute; bottom: 16px; font-size: 12px; color: var(--muted); }
+  .back .word-small { font-size: 22px; font-weight: 600; }
+  .meaning { margin-top: 14px; font-size: 22px; color: var(--accent); font-weight: 600; }
+  .example { margin-top: 18px; font-size: 15px; line-height: 1.6; }
+  .example b { color: var(--accent); }
+  .example-cn { margin-top: 6px; font-size: 13px; color: var(--muted); line-height: 1.5; }
+  .result { margin-top: 16px; font-size: 13px; font-weight: 600; }
+
+  .actions { display: flex; gap: 12px; width: 100%; max-width: 420px; }
+  button {
+    flex: 1; padding: 14px 10px;
+    border: none; border-radius: 14px;
+    font-size: 16px; font-weight: 600; cursor: pointer;
+    color: #fff; transition: transform .1s, opacity .2s;
+    font-family: inherit;
+  }
+  button:active { transform: scale(0.97); }
+  .btn-know { background: var(--good); }
+  .btn-unsure { background: var(--warn); }
+  .btn-next { background: var(--accent); }
+  .hidden { display: none !important; }
+
+  .done { text-align: center; }
+  .done .big { font-size: 48px; }
+  .done p { margin-top: 10px; color: var(--muted); }
+  .kbd { margin-top: 4px; font-size: 12px; color: var(--muted); text-align: center; }
+</style>
+</head>
+<body>
+  <header>
+    <h1>雅思写作高频词</h1>
+    <div class="stats" id="stats"></div>
+    <div class="progress"><div class="progress-bar" id="bar"></div></div>
+  </header>
+
+  <div class="scene" id="scene">
+    <div class="card" id="card">
+      <div class="face front">
+        <span class="tag" id="tagFront"></span>
+        <span class="again-tag" id="againTag">复习</span>
+        <div class="word" id="word"></div>
+        <div class="phonetic" id="phonetic"></div>
+        <span class="hint">点击卡片或按钮查看释义</span>
+      </div>
+      <div class="face back">
+        <span class="tag" id="tagBack"></span>
+        <div class="word-small" id="wordBack"></div>
+        <div class="meaning" id="meaning"></div>
+        <div class="example" id="example"></div>
+        <div class="example-cn" id="exampleCn"></div>
+        <div class="result" id="result"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="actions" id="answerActions">
+    <button class="btn-know" id="btnKnow">认识</button>
+    <button class="btn-unsure" id="btnUnsure">不认识 / 不确定</button>
+  </div>
+  <div class="actions hidden" id="nextActions">
+    <button class="btn-next" id="btnNext">下一个 →</button>
+  </div>
+  <div class="kbd">快捷键：← 认识 · → 不认识 · 空格 翻面/下一个</div>
+
+<script>
+const WORDS = [
+  { w: "significant", p: "/sɪɡˈnɪfɪkənt/", m: "adj. 重要的；显著的", e: "There has been a significant increase in the number of students studying abroad.", c: "出国留学的学生数量显著增加。" },
+  { w: "crucial", p: "/ˈkruːʃl/", m: "adj. 至关重要的", e: "Education plays a crucial role in reducing poverty.", c: "教育在减少贫困方面起着至关重要的作用。" },
+  { w: "phenomenon", p: "/fəˈnɒmɪnən/", m: "n. 现象", e: "Urbanisation is a global phenomenon that affects every continent.", c: "城市化是一种影响各大洲的全球现象。" },
+  { w: "inevitable", p: "/ɪnˈevɪtəbl/", m: "adj. 不可避免的", e: "Some degree of change is inevitable as technology develops.", c: "随着科技发展，一定程度的变化是不可避免的。" },
+  { w: "contribute", p: "/kənˈtrɪbjuːt/", m: "v. 促成；贡献", e: "Air pollution contributes to a range of health problems.", c: "空气污染会导致一系列健康问题。" },
+  { w: "alleviate", p: "/əˈliːvieɪt/", m: "v. 减轻；缓解", e: "Building more public transport could alleviate traffic congestion.", c: "修建更多公共交通可以缓解交通拥堵。" },
+  { w: "detrimental", p: "/ˌdetrɪˈmentl/", m: "adj. 有害的", e: "Excessive screen time can be detrimental to children's eyesight.", c: "过长的屏幕时间会损害儿童视力。" },
+  { w: "beneficial", p: "/ˌbenɪˈfɪʃl/", m: "adj. 有益的", e: "Regular exercise is beneficial to both physical and mental health.", c: "规律运动对身心健康都有益。" },
+  { w: "consequence", p: "/ˈkɒnsɪkwəns/", m: "n. 后果；结果", e: "Deforestation has serious consequences for wildlife.", c: "森林砍伐对野生动物造成严重后果。" },
+  { w: "substantial", p: "/səbˈstænʃl/", m: "adj. 大量的；可观的", e: "The government has invested a substantial amount in renewable energy.", c: "政府在可再生能源上投入了大量资金。" },
+  { w: "advocate", p: "/ˈædvəkeɪt/", m: "v. 提倡；主张", e: "Many experts advocate a ban on junk food advertising.", c: "许多专家主张禁止垃圾食品广告。" },
+  { w: "undermine", p: "/ˌʌndəˈmaɪn/", m: "v. 削弱；暗中破坏", e: "Corruption can undermine public trust in the government.", c: "腐败会削弱公众对政府的信任。" },
+  { w: "facilitate", p: "/fəˈsɪlɪteɪt/", m: "v. 促进；使便利", e: "The Internet facilitates communication between people across the world.", c: "互联网促进了世界各地人们之间的交流。" },
+  { w: "enhance", p: "/ɪnˈhɑːns/", m: "v. 提高；增强", e: "Learning a second language can enhance career prospects.", c: "学习第二语言可以改善职业前景。" },
+  { w: "diminish", p: "/dɪˈmɪnɪʃ/", m: "v. 减少；降低", e: "The importance of handwriting has diminished in the digital age.", c: "在数字时代，手写的重要性已经降低。" },
+  { w: "fluctuate", p: "/ˈflʌktʃueɪt/", m: "v. 波动；起伏", e: "House prices fluctuated considerably between 2010 and 2020.", c: "2010 年至 2020 年间房价波动较大。" },
+  { w: "proportion", p: "/prəˈpɔːʃn/", m: "n. 比例；部分", e: "A large proportion of the population now lives in cities.", c: "现在很大一部分人口居住在城市。" },
+  { w: "approximately", p: "/əˈprɒksɪmətli/", m: "adv. 大约", e: "Approximately 40% of the respondents preferred online shopping.", c: "大约 40% 的受访者更喜欢网购。" },
+  { w: "sustainable", p: "/səˈsteɪnəbl/", m: "adj. 可持续的", e: "Cities need to adopt more sustainable ways of producing energy.", c: "城市需要采用更可持续的能源生产方式。" },
+  { w: "controversial", p: "/ˌkɒntrəˈvɜːʃl/", m: "adj. 有争议的", e: "Animal testing remains a controversial issue.", c: "动物实验仍是一个有争议的问题。" },
+  { w: "perspective", p: "/pəˈspektɪv/", m: "n. 观点；视角", e: "Travelling abroad can give young people a broader perspective.", c: "出国旅行能让年轻人拥有更广阔的视角。" },
+  { w: "compulsory", p: "/kəmˈpʌlsəri/", m: "adj. 强制的；义务的", e: "Some people believe community service should be compulsory for teenagers.", c: "有些人认为社区服务应成为青少年的义务。" },
+  { w: "accessible", p: "/əkˈsesəbl/", m: "adj. 可获得的；易接近的", e: "Higher education should be accessible to everyone, regardless of income.", c: "高等教育应向所有人开放，无论收入多少。" },
+  { w: "allocate", p: "/ˈæləkeɪt/", m: "v. 分配；拨出", e: "Governments should allocate more funds to public healthcare.", c: "政府应为公共医疗拨出更多资金。" },
+  { w: "exacerbate", p: "/ɪɡˈzæsəbeɪt/", m: "v. 使恶化；加剧", e: "Rapid population growth may exacerbate housing shortages.", c: "人口快速增长可能加剧住房短缺。" },
+  { w: "prevalent", p: "/ˈprevələnt/", m: "adj. 普遍的；流行的", e: "Obesity is becoming increasingly prevalent among children.", c: "肥胖在儿童中越来越普遍。" },
+  { w: "integral", p: "/ˈɪntɪɡrəl/", m: "adj. 不可或缺的", e: "Technology has become an integral part of modern education.", c: "科技已成为现代教育不可或缺的一部分。" },
+  { w: "mitigate", p: "/ˈmɪtɪɡeɪt/", m: "v. 减轻；缓和", e: "Planting trees can help mitigate the effects of climate change.", c: "植树有助于减轻气候变化的影响。" },
+  { w: "discrepancy", p: "/dɪsˈkrepənsi/", m: "n. 差异；不一致", e: "There is a large discrepancy between the incomes of men and women.", c: "男女收入之间存在很大差异。" },
+  { w: "furthermore", p: "/ˌfɜːðəˈmɔː(r)/", m: "adv. 此外；而且", e: "Furthermore, remote working reduces the time people spend commuting.", c: "此外，远程办公减少了人们的通勤时间。" }
+];
+
+const REINSERT_GAP = 3; // 不认识的词在之后第几张再出现
+
+let queue = [];
+let current = null;
+let known = new Set();
+let flipped = false;
+let seen = new Set();
+
+const $ = id => document.getElementById(id);
+const card = $("card");
+
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function escapeRe(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
+
+function highlight(sentence, word) {
+  const re = new RegExp("\\b(" + escapeRe(word) + "\\w*)", "i");
+  return sentence.replace(re, "<b>$1</b>");
+}
+
+function updateStats() {
+  $("stats").textContent = `已掌握 ${known.size} / ${WORDS.length} · 待学 ${WORDS.length - known.size} 个`;
+  $("bar").style.width = (known.size / WORDS.length * 100) + "%";
+}
+
+function render() {
+  const d = WORDS[current];
+  $("word").textContent = d.w;
+  $("phonetic").textContent = d.p;
+  $("wordBack").textContent = d.w + "  " + d.p;
+  $("meaning").textContent = d.m;
+  $("example").innerHTML = highlight(d.e, d.w);
+  $("exampleCn").textContent = d.c;
+  $("result").textContent = "";
+  $("tagFront").textContent = $("tagBack").textContent = "#" + (current + 1);
+  $("againTag").style.display = seen.has(current) ? "block" : "none";
+}
+
+function showNext() {
+  if (queue.length === 0) return finish();
+  current = queue.shift();
+  flipped = false;
+  card.classList.remove("flipped");
+  // 等待翻回正面后再换内容，避免背面内容闪现
+  setTimeout(() => { render(); }, card.dataset.init ? 250 : 0);
+  card.dataset.init = "1";
+  $("answerActions").classList.remove("hidden");
+  $("nextActions").classList.add("hidden");
+  updateStats();
+}
+
+function answer(isKnown) {
+  if (flipped) return;
+  seen.add(current);
+  if (isKnown) {
+    known.add(current);
+    $("result").textContent = "✓ 已认识";
+    $("result").style.color = "var(--good)";
+  } else {
+    const pos = Math.min(REINSERT_GAP, queue.length);
+    queue.splice(pos, 0, current);
+    $("result").textContent = "↻ 稍后会再次出现";
+    $("result").style.color = "var(--warn)";
+  }
+  flip();
+  updateStats();
+}
+
+function flip() {
+  flipped = true;
+  card.classList.add("flipped");
+  $("answerActions").classList.add("hidden");
+  $("nextActions").classList.remove("hidden");
+}
+
+function finish() {
+  current = null;
+  updateStats();
+  $("answerActions").classList.add("hidden");
+  $("nextActions").classList.add("hidden");
+  card.classList.remove("flipped");
+  card.querySelector(".front").innerHTML = `
+    <div class="done">
+      <div class="big">🎉</div>
+      <h2 style="margin-top:8px">全部掌握！</h2>
+      <p>30 个雅思写作高频词已全部认识</p>
+      <button class="btn-next" style="margin-top:22px;padding:12px 28px;flex:none" onclick="location.reload()">再来一轮</button>
+    </div>`;
+}
+
+// 点击卡片：未作答时视为"不确定"并翻面；已翻面时进入下一张
+card.addEventListener("click", e => {
+  if (current === null) return;
+  if (!flipped) answer(false);
+  else showNext();
+});
+$("btnKnow").addEventListener("click", () => answer(true));
+$("btnUnsure").addEventListener("click", () => answer(false));
+$("btnNext").addEventListener("click", showNext);
+
+document.addEventListener("keydown", e => {
+  if (current === null) return;
+  if (!flipped && e.key === "ArrowLeft") answer(true);
+  else if (!flipped && e.key === "ArrowRight") answer(false);
+  else if (e.key === " " || e.key === "Enter") {
+    e.preventDefault();
+    flipped ? showNext() : answer(false);
+  }
+});
+
+queue = shuffle(WORDS.map((_, i) => i));
+showNext();
+</script>
+</body>
+</html>
