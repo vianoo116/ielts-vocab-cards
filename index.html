@@ -92,12 +92,15 @@
   .btn-know { background: var(--good); }
   .btn-unsure { background: var(--warn); }
   .btn-next { background: var(--accent); }
+  .btn-oops { flex: 0 0 auto; padding: 14px 18px; background: transparent; color: var(--warn); box-shadow: inset 0 0 0 2px var(--warn); }
   .hidden { display: none !important; }
 
   .done { text-align: center; }
   .done .big { font-size: 48px; }
   .done p { margin-top: 10px; color: var(--muted); }
   .kbd { margin-top: 4px; font-size: 12px; color: var(--muted); text-align: center; }
+  /* 快捷键提示只在有键盘和鼠标的设备上显示 */
+  @media (hover: none), (pointer: coarse) { .kbd { display: none; } }
 </style>
 </head>
 <body>
@@ -132,6 +135,7 @@
     <button class="btn-unsure" id="btnUnsure">不认识 / 不确定</button>
   </div>
   <div class="actions hidden" id="nextActions">
+    <button class="btn-oops hidden" id="btnOops">记错了</button>
     <button class="btn-next" id="btnNext">下一个 →</button>
   </div>
   <div class="kbd">快捷键：← 认识 · → 不认识 · 空格 翻面/下一个</div>
@@ -170,13 +174,16 @@ const WORDS = [
   { w: "furthermore", p: "/ˌfɜːðəˈmɔː(r)/", m: "adv. 此外；而且", e: "Furthermore, remote working reduces the time people spend commuting.", c: "此外，远程办公减少了人们的通勤时间。" }
 ];
 
-const REINSERT_GAP = 3; // 不认识的词在之后第几张再出现
+// 不认识的词随机隔 3–7 张再出现；剩下的卡片不够就放到最后
+const GAP_MIN = 3;
+const GAP_MAX = 7;
 
 let queue = [];
 let current = null;
 let known = new Set();
 let flipped = false;
 let seen = new Set();
+let renderTimer = null;
 
 const $ = id => document.getElementById(id);
 const card = $("card");
@@ -219,39 +226,73 @@ function showNext() {
   current = queue.shift();
   flipped = false;
   card.classList.remove("flipped");
-  // 等待翻回正面后再换内容，避免背面内容闪现
-  setTimeout(() => { render(); }, card.dataset.init ? 250 : 0);
+  // 等卡片翻回正面后再换内容，避免新词的释义在背面闪现
+  clearTimeout(renderTimer);
+  if (card.dataset.init) {
+    renderTimer = setTimeout(() => { renderTimer = null; render(); }, 250);
+  } else {
+    render();
+  }
   card.dataset.init = "1";
   $("answerActions").classList.remove("hidden");
   $("nextActions").classList.add("hidden");
   updateStats();
 }
 
+function requeue(idx) {
+  const gap = GAP_MIN + Math.floor(Math.random() * (GAP_MAX - GAP_MIN + 1));
+  queue.splice(Math.min(gap, queue.length), 0, idx);
+}
+
+function setResult(text, color) {
+  $("result").textContent = text;
+  $("result").style.color = color;
+}
+
+// 用户在 250ms 内就作答时，先把待更新的内容立刻渲染出来
+function flushRender() {
+  if (renderTimer === null) return;
+  clearTimeout(renderTimer);
+  renderTimer = null;
+  render();
+}
+
 function answer(isKnown) {
   if (flipped) return;
+  flushRender();
   seen.add(current);
   if (isKnown) {
     known.add(current);
-    $("result").textContent = "✓ 已认识";
-    $("result").style.color = "var(--good)";
+    setResult("✓ 已认识", "var(--good)");
   } else {
-    const pos = Math.min(REINSERT_GAP, queue.length);
-    queue.splice(pos, 0, current);
-    $("result").textContent = "↻ 稍后会再次出现";
-    $("result").style.color = "var(--warn)";
+    requeue(current);
+    setResult("↻ 稍后会再次出现", "var(--warn)");
   }
-  flip();
+  flip(isKnown);
   updateStats();
 }
 
-function flip() {
+// 点了「认识」后发现记错了：撤回「认识」，按「不认识」处理
+function markWrong() {
+  if (!flipped || !known.has(current)) return;
+  known.delete(current);
+  requeue(current);
+  setResult("↻ 记错了，稍后会再次出现", "var(--warn)");
+  $("btnOops").classList.add("hidden");
+  updateStats();
+}
+
+function flip(isKnown) {
   flipped = true;
   card.classList.add("flipped");
   $("answerActions").classList.add("hidden");
   $("nextActions").classList.remove("hidden");
+  $("btnOops").classList.toggle("hidden", !isKnown);
 }
 
 function finish() {
+  clearTimeout(renderTimer);
+  renderTimer = null;
   current = null;
   updateStats();
   $("answerActions").classList.add("hidden");
@@ -275,6 +316,7 @@ card.addEventListener("click", e => {
 $("btnKnow").addEventListener("click", () => answer(true));
 $("btnUnsure").addEventListener("click", () => answer(false));
 $("btnNext").addEventListener("click", showNext);
+$("btnOops").addEventListener("click", markWrong);
 
 document.addEventListener("keydown", e => {
   if (current === null) return;
