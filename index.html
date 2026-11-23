@@ -98,6 +98,10 @@
   .done { text-align: center; }
   .done .big { font-size: 48px; }
   .done p { margin-top: 10px; color: var(--muted); }
+  .round-stats { display: flex; gap: 10px; margin-top: 18px; justify-content: center; }
+  .round-stats div { flex: 1; max-width: 96px; padding: 10px 4px; border-radius: 12px; background: rgba(127,127,127,0.1); }
+  .round-stats b { display: block; font-size: 22px; color: var(--text); }
+  .round-stats span { font-size: 12px; color: var(--muted); white-space: nowrap; }
   .kbd { margin-top: 4px; font-size: 12px; color: var(--muted); text-align: center; }
   /* 快捷键提示只在有键盘和鼠标的设备上显示 */
   @media (hover: none), (pointer: coarse) { .kbd { display: none; } }
@@ -184,6 +188,9 @@ let known = new Set();
 let flipped = false;
 let seen = new Set();
 let renderTimer = null;
+// 本轮统计：点「认识」的总次数、其中又点了「记错了」的次数
+let knowClicks = 0;
+let oopsClicks = 0;
 
 const $ = id => document.getElementById(id);
 const card = $("card");
@@ -263,6 +270,7 @@ function answer(isKnown) {
   seen.add(current);
   if (isKnown) {
     known.add(current);
+    knowClicks++;
     setResult("✓ 已认识", "var(--good)");
   } else {
     requeue(current);
@@ -276,6 +284,7 @@ function answer(isKnown) {
 function markWrong() {
   if (!flipped || !known.has(current)) return;
   known.delete(current);
+  oopsClicks++;
   requeue(current);
   setResult("↻ 记错了，稍后会再次出现", "var(--warn)");
   $("btnOops").classList.add("hidden");
@@ -303,6 +312,11 @@ function finish() {
       <div class="big">🎉</div>
       <h2 style="margin-top:8px">全部掌握！</h2>
       <p>30 个雅思写作高频词已全部认识</p>
+      <div class="round-stats">
+        <div><b id="statKnow">${knowClicks}</b><span>认识次数</span></div>
+        <div><b id="statOops">${oopsClicks}</b><span>其中记错</span></div>
+        <div><b id="statRate">${knowClicks ? Math.round(oopsClicks / knowClicks * 100) : 0}%</b><span>记错率</span></div>
+      </div>
       <button class="btn-next" style="margin-top:22px;padding:12px 28px;flex:none" onclick="location.reload()">再来一轮</button>
     </div>`;
 }
